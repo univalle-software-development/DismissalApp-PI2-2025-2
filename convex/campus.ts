@@ -39,36 +39,6 @@ export const listActive = query({
 });
 
 /**
- * Get campus settings by name
- */
-export const get = query({
-    args: { campusName: v.string() },
-    handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const settings = await getCampusSettings(ctx.db, args.campusName);
-        if (!settings) return null;
-
-        const role = (identity.publicMetadata as any)?.dismissalRole || 'viewer';
-
-        // Check access
-        if (!['admin', 'superadmin'].includes(role)) {
-            const user = await ctx.db
-                .query("users")
-                .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-                .first();
-
-            if (!user || !user.assignedCampuses.includes(args.campusName)) {
-                throw new Error("No access to this campus");
-            }
-        }
-
-        return settings;
-    }
-});
-
-/**
  * Get available grades for a campus
  */
 export const getAvailableGrades = query({
@@ -156,6 +126,40 @@ export const create = mutation({
 });
 
 /**
+ * Get campus options for dropdowns
+ */
+export const getOptions = query({
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const role = (identity.publicMetadata as any)?.dismissalRole || 'viewer';
+        const campuses = await getActiveCampuses(ctx.db);
+
+        // Filter by user access
+        let accessibleCampuses = campuses;
+        if (!['admin', 'superadmin'].includes(role)) {
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
+                .first();
+
+            if (user) {
+                accessibleCampuses = campuses.filter(campus =>
+                    user.assignedCampuses.includes(campus.campusName)
+                );
+            }
+        }
+
+        return accessibleCampuses.map(campus => ({
+            value: campus.campusName,
+            label: campus.displayName,
+            isActive: campus.isActive
+        }));
+    }
+});
+
+/**
  * Update campus settings (superadmin only)
  */
 export const update = mutation({
@@ -202,6 +206,36 @@ export const update = mutation({
         await ctx.db.patch(campus._id, updates);
 
         return campus._id;
+    }
+});
+
+/**
+ * Get campus settings by name
+ */
+export const get = query({
+    args: { campusName: v.string() },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const settings = await getCampusSettings(ctx.db, args.campusName);
+        if (!settings) return null;
+
+        const role = (identity.publicMetadata as any)?.dismissalRole || 'viewer';
+
+        // Check access
+        if (!['admin', 'superadmin'].includes(role)) {
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
+                .first();
+
+            if (!user || !user.assignedCampuses.includes(args.campusName)) {
+                throw new Error("No access to this campus");
+            }
+        }
+
+        return settings;
     }
 });
 
@@ -277,39 +311,5 @@ export const getStats = query({
             averageStudentsPerCar: uniqueCarNumbers.size > 0 ?
                 Math.round((studentsWithCars.length / uniqueCarNumbers.size) * 10) / 10 : 0
         };
-    }
-});
-
-/**
- * Get campus options for dropdowns
- */
-export const getOptions = query({
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const role = (identity.publicMetadata as any)?.dismissalRole || 'viewer';
-        const campuses = await getActiveCampuses(ctx.db);
-
-        // Filter by user access
-        let accessibleCampuses = campuses;
-        if (!['admin', 'superadmin'].includes(role)) {
-            const user = await ctx.db
-                .query("users")
-                .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-                .first();
-
-            if (user) {
-                accessibleCampuses = campuses.filter(campus =>
-                    user.assignedCampuses.includes(campus.campusName)
-                );
-            }
-        }
-
-        return accessibleCampuses.map(campus => ({
-            value: campus.campusName,
-            label: campus.displayName,
-            isActive: campus.isActive
-        }));
     }
 });
