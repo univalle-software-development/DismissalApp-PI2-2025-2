@@ -54,23 +54,6 @@ export const saveAvatarStorageId = mutation({
 });
 
 /**
- * Delete avatar storage file (for cleaning up unused uploads)
- */
-export const deleteAvatarStorage = mutation({
-    args: { storageId: v.id("_storage") },
-    handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        try {
-            await ctx.storage.delete(args.storageId);
-        } catch {
-            // Don't throw - storage might already be deleted
-        }
-    },
-});
-
-/**
  * Delete avatar from storage and student record
  */
 export const deleteAvatar = mutation({
@@ -145,6 +128,23 @@ export const getBatchAvatarUrls = query({
             return {};
         }
     }
+});
+
+/**
+ * Delete avatar storage file (for cleaning up unused uploads)
+ */
+export const deleteAvatarStorage = mutation({
+    args: { storageId: v.id("_storage") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        try {
+            await ctx.storage.delete(args.storageId);
+        } catch {
+            // Don't throw - storage might already be deleted
+        }
+    },
 });
 
 // ============================================================================

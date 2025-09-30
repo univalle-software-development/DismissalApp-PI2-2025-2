@@ -32,28 +32,6 @@ async function isCarInQueue(db: any, carNumber: number, campus: string): Promise
     return existing !== null;
 }
 
-async function getNextPosition(db: any, campus: string, lane: string): Promise<number> {
-    const entries = await db
-        .query("dismissalQueue")
-        .withIndex("by_campus_lane_position", (q: any) =>
-            q.eq("campusLocation", campus).eq("lane", lane)
-        )
-        .collect();
-
-    if (entries.length === 0) return 1;
-
-    const maxPosition = Math.max(...entries.map((e: any) => e.position));
-    return maxPosition + 1;
-}
-
-function generateCarColor(carNumber: number): string {
-    const colors = [
-        '#3b82f6', '#10b981', '#ef4444', '#8b5cf6',
-        '#f97316', '#06b6d4', '#84cc16', '#f59e0b'
-    ];
-    return colors[carNumber % colors.length];
-}
-
 function studentToSummary(student: any) {
     return {
         studentId: student._id,
@@ -142,6 +120,28 @@ export const getCurrentQueue = query({
         }
     }
 });
+
+async function getNextPosition(db: any, campus: string, lane: string): Promise<number> {
+    const entries = await db
+        .query("dismissalQueue")
+        .withIndex("by_campus_lane_position", (q: any) =>
+            q.eq("campusLocation", campus).eq("lane", lane)
+        )
+        .collect();
+
+    if (entries.length === 0) return 1;
+
+    const maxPosition = Math.max(...entries.map((e: any) => e.position));
+    return maxPosition + 1;
+}
+
+function generateCarColor(carNumber: number): string {
+    const colors = [
+        '#3b82f6', '#10b981', '#ef4444', '#8b5cf6',
+        '#f97316', '#06b6d4', '#84cc16', '#f59e0b'
+    ];
+    return colors[carNumber % colors.length];
+}
 
 /**
  * Add car to queue (allocator action)
@@ -235,81 +235,6 @@ export const addCar = mutation({
         return {
             success: true,
             queueId
-        };
-    }
-});
-
-/**
- * Remove car from queue (dispatcher action)
- */
-export const removeCar = mutation({
-    args: {
-        queueId: v.id("dismissalQueue")
-    },
-    handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        // Get or create user record
-        let user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
-            .first();
-
-        if (!user) {
-            // Create user record if it doesn't exist
-            const userId = await ctx.db.insert("users", {
-                clerkId: identity.subject,
-                username: (identity.username as string) || (identity.email as string) || "unknown",
-                email: (identity.email as string) || (identity.emailAddress as string),
-                firstName: (identity.firstName as string) || (identity.givenName as string),
-                lastName: (identity.lastName as string) || (identity.familyName as string),
-                imageUrl: (identity.imageUrl as string) || (identity.pictureUrl as string),
-                assignedCampuses: [],
-                isActive: true,
-                createdAt: Date.now(),
-                lastLoginAt: Date.now()
-            });
-            user = await ctx.db.get(userId);
-        }
-
-        if (!user) throw new Error("Failed to create user record");
-
-        const entry = await ctx.db.get(args.queueId);
-        if (!entry) throw new Error("Queue entry not found");
-
-        if (entry.status !== "waiting") {
-            throw new Error("Car is not in waiting status");
-        }
-
-        // Calculate wait time
-        const waitTimeSeconds = Math.floor((Date.now() - entry.assignedTime) / 1000);
-
-        // Create history entry
-        await ctx.db.insert("dismissalHistory", {
-            carNumber: entry.carNumber,
-            campusLocation: entry.campusLocation,
-            lane: entry.lane,
-            studentIds: entry.students.map((s: any) => s.studentId),
-            studentNames: entry.students.map((s: any) => s.name),
-            queuedAt: entry.assignedTime,
-            completedAt: Date.now(),
-            waitTimeSeconds,
-            addedBy: entry.addedBy,
-            removedBy: user._id,
-            date: new Date().toISOString().split('T')[0]
-        });
-
-        // Reposition remaining cars in lane
-        await repositionLaneCars(ctx.db, entry.campusLocation, entry.lane, entry.position);
-
-        // Remove from queue
-        await ctx.db.delete(args.queueId);
-
-        return {
-            success: true,
-            waitTime: waitTimeSeconds,
-            carNumber: entry.carNumber
         };
     }
 });
@@ -478,6 +403,81 @@ export const getQueueMetrics = query({
                 authState: "error"
             };
         }
+    }
+});
+
+/**
+ * Remove car from queue (dispatcher action)
+ */
+export const removeCar = mutation({
+    args: {
+        queueId: v.id("dismissalQueue")
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        // Get or create user record
+        let user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", q => q.eq("clerkId", identity.subject))
+            .first();
+
+        if (!user) {
+            // Create user record if it doesn't exist
+            const userId = await ctx.db.insert("users", {
+                clerkId: identity.subject,
+                username: (identity.username as string) || (identity.email as string) || "unknown",
+                email: (identity.email as string) || (identity.emailAddress as string),
+                firstName: (identity.firstName as string) || (identity.givenName as string),
+                lastName: (identity.lastName as string) || (identity.familyName as string),
+                imageUrl: (identity.imageUrl as string) || (identity.pictureUrl as string),
+                assignedCampuses: [],
+                isActive: true,
+                createdAt: Date.now(),
+                lastLoginAt: Date.now()
+            });
+            user = await ctx.db.get(userId);
+        }
+
+        if (!user) throw new Error("Failed to create user record");
+
+        const entry = await ctx.db.get(args.queueId);
+        if (!entry) throw new Error("Queue entry not found");
+
+        if (entry.status !== "waiting") {
+            throw new Error("Car is not in waiting status");
+        }
+
+        // Calculate wait time
+        const waitTimeSeconds = Math.floor((Date.now() - entry.assignedTime) / 1000);
+
+        // Create history entry
+        await ctx.db.insert("dismissalHistory", {
+            carNumber: entry.carNumber,
+            campusLocation: entry.campusLocation,
+            lane: entry.lane,
+            studentIds: entry.students.map((s: any) => s.studentId),
+            studentNames: entry.students.map((s: any) => s.name),
+            queuedAt: entry.assignedTime,
+            completedAt: Date.now(),
+            waitTimeSeconds,
+            addedBy: entry.addedBy,
+            removedBy: user._id,
+            date: new Date().toISOString().split('T')[0]
+        });
+
+        // Reposition remaining cars in lane
+        await repositionLaneCars(ctx.db, entry.campusLocation, entry.lane, entry.position);
+
+        // Remove from queue
+        await ctx.db.delete(args.queueId);
+
+        return {
+            success: true,
+            waitTime: waitTimeSeconds,
+            carNumber: entry.carNumber
+        };
     }
 });
 
