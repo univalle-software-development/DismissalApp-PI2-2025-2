@@ -25,7 +25,5 @@
   "include": [
     "./**/*"
   ],
-  "exclude": [
-    "./_generated"
-  ]
+  "exclude": []
 }
