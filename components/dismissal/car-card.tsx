@@ -314,6 +314,7 @@ export const CarCard = React.memo<CarCardProps>(
               <div className="p-4 space-y-6">
                 {/* Car SVG Display */}
                 {/* <div className="flex justify-center">
+
                                 <div className="bg-gray-50 rounded-xl p-4">
                                     <Car
                                         size="lg"
@@ -321,7 +322,6 @@ export const CarCard = React.memo<CarCardProps>(
                                     />
                                 </div>
                             </div> */}
-
                 {/* Students Section */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">

@@ -3,6 +3,17 @@
 import { mutation, query } from "./_generated/server";
 
 /**
+ * Check if current user is authenticated
+ */
+export const isAuthenticated = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        return identity !== null;
+    }
+});
+
+/**
  * Get current user from Clerk identity
  * Simple authentication check without role management
  */
@@ -20,16 +31,5 @@ export const getCurrentUser = query({
             imageUrl: identity.imageUrl || identity.pictureUrl || "",
             username: identity.username || ""
         };
-    }
-});
-
-/**
- * Check if current user is authenticated
- */
-export const isAuthenticated = query({
-    args: {},
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        return identity !== null;
     }
 });
