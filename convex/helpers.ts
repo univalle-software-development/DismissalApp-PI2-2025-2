@@ -155,47 +155,6 @@ export async function getStudentsByCarNumber(
 }
 
 /**
- * Get unique grades for a campus
- */
-export async function getCampusGrades(
-    db: DbReader,
-    campus: string
-): Promise<string[]> {
-    const students = await db
-        .query("students")
-        .withIndex("by_campus_active", q =>
-            q.eq("campusLocation", campus).eq("isActive", true)
-        )
-        .collect();
-
-    const grades = new Set(students.map(s => s.grade));
-    return Array.from(grades).sort();
-}
-
-/**
- * Get student with car and sibling information
- */
-export async function getStudentWithCarInfo(
-    db: DbReader,
-    studentId: Id<"students">
-): Promise<StudentWithCar | null> {
-    const student = await db.get(studentId);
-    if (!student) return null;
-
-    const siblings = student.carNumber > 0
-        ? await getStudentsByCarNumber(db, student.carNumber, student.campusLocation)
-            .then(students => students.filter(s => s._id !== studentId))
-        : [];
-
-    return {
-        student,
-        carNumber: student.carNumber,
-        hasCarAssigned: student.carNumber > 0,
-        siblings
-    };
-}
-
-/**
  * Convert student to summary format for queue display
  */
 export function studentToSummary(student: Doc<"students">): StudentSummary {
@@ -378,6 +337,47 @@ export async function getQueueMetrics(
 }
 
 /**
+ * Get unique grades for a campus
+ */
+export async function getCampusGrades(
+    db: DbReader,
+    campus: string
+): Promise<string[]> {
+    const students = await db
+        .query("students")
+        .withIndex("by_campus_active", q =>
+            q.eq("campusLocation", campus).eq("isActive", true)
+        )
+        .collect();
+
+    const grades = new Set(students.map(s => s.grade));
+    return Array.from(grades).sort();
+}
+
+/**
+ * Get student with car and sibling information
+ */
+export async function getStudentWithCarInfo(
+    db: DbReader,
+    studentId: Id<"students">
+): Promise<StudentWithCar | null> {
+    const student = await db.get(studentId);
+    if (!student) return null;
+
+    const siblings = student.carNumber > 0
+        ? await getStudentsByCarNumber(db, student.carNumber, student.campusLocation)
+            .then(students => students.filter(s => s._id !== studentId))
+        : [];
+
+    return {
+        student,
+        carNumber: student.carNumber,
+        hasCarAssigned: student.carNumber > 0,
+        siblings
+    };
+}
+
+/**
  * Get daily dismissal summary
  */
 export async function getDailyDismissalSummary(
@@ -501,27 +501,6 @@ export async function getCampusSettings(
         .first();
 }
 
-/**
- * Check if dismissal is currently active
- */
-export function isDismissalTimeActive(
-    settings: Doc<"campusSettings">
-): boolean {
-    if (!settings.dismissalStartTime || !settings.dismissalEndTime) {
-        return true; // Always active if no times set
-    }
-
-    const now = new Date();
-    const [startHour, startMin] = settings.dismissalStartTime.split(':').map(Number);
-    const [endHour, endMin] = settings.dismissalEndTime.split(':').map(Number);
-
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-
-    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-}
-
 // ============================================================================
 // AUDIT LOG HELPERS
 // ============================================================================
@@ -572,6 +551,27 @@ export async function createAuditLogFromContext(
         action,
         details
     );
+}
+
+/**
+ * Check if dismissal is currently active
+ */
+export function isDismissalTimeActive(
+    settings: Doc<"campusSettings">
+): boolean {
+    if (!settings.dismissalStartTime || !settings.dismissalEndTime) {
+        return true; // Always active if no times set
+    }
+
+    const now = new Date();
+    const [startHour, startMin] = settings.dismissalStartTime.split(':').map(Number);
+    const [endHour, endMin] = settings.dismissalEndTime.split(':').map(Number);
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
 /**
