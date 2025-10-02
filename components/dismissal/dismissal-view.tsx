@@ -100,7 +100,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             lane: "left" | "right";
             position: number;
             assignedTime: number;
-            students: Array<{ studentId: string; name: string; grade: string; avatarUrl?: string; avatarStorageId?: Id<"_storage">;  birthday?: string }>;
+            students: Array<{ studentId: string; name: string; grade: string; avatarUrl?: string; avatarStorageId?: Id<"_storage">; birthday?: string }>;
             campusLocation: string;
             carColor: string;
         }): CarData => {
