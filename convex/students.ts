@@ -1,4 +1,4 @@
-de// convex/students.ts
+// convex/students.ts
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
