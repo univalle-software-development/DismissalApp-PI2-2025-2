@@ -4,7 +4,7 @@ import * as React from "react"
 import { useTranslations } from "next-intl"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const [isFullscreen, setIsFullscreen] = React.useState(false)
     const [carInputValue, setCarInputValue] = React.useState<string>('')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [isListening, setIsListening] = React.useState(false)
 
     // Alert state
     const [alert, setAlert] = React.useState<{
@@ -222,6 +223,21 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         setIsFullscreen(!isFullscreen)
     }
 
+    // Handle voice command (placeholder for future implementation)
+    const handleVoiceCommand = React.useCallback(() => {
+        if (isSubmitting) return
+
+        // TODO: Implement voice recognition logic
+        setIsListening(!isListening)
+
+        // Placeholder: Auto-stop after animation
+        if (!isListening) {
+            setTimeout(() => {
+                setIsListening(false)
+            }, 3000)
+        }
+    }, [isListening, isSubmitting])
+
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
             {/* Campus Selection and Lane Balance */}
@@ -304,7 +320,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                 {mode === 'allocator' && isCampusSelected && (
                     <div className="absolute bottom-8 left-0 right-0 z-20 px-2">
                         <div className="flex justify-center">
-                            <div className="bg-white/90 w-full max-w-xs sm:max-w-sm backdrop-blur-md rounded-xl sm:rounded-2xl  border-white/30 relative overflow-hidden">
+                            <div className="bg-white/90 w-full max-w-xs sm:max-w-sm backdrop-blur-md rounded-xl sm:rounded-2xl border-white/30 relative overflow-hidden">
                                 <div className="flex items-center gap-2 sm:gap-3 relative z-10 justify-center">
                                     {/* Left Arrow Button */}
                                     <Button
@@ -316,23 +332,56 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                         <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                                     </Button>
 
-                                    {/* Car Input */}
-                                    <Input
-                                        type="number"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        placeholder={t('allocator.addCarPlaceholder')}
-                                        value={carInputValue}
-                                        onChange={(e) => {
-                                            // Solo permitir números
-                                            const value = e.target.value.replace(/[^0-9]/g, '')
-                                            setCarInputValue(value)
-                                        }}
-                                        onKeyDown={handleKeyPress}
-                                        disabled={isSubmitting}
-                                        className="text-center text-base sm:text-lg font-bold border-2 border-gray-300 focus:border-yankees-blue focus:ring-2 focus:ring-yankees-blue/20 h-10 sm:h-12 rounded-lg sm:rounded-xl shadow-sm bg-white disabled:opacity-50"
-                                        autoFocus
-                                    />
+                                    {/* Car Input with Voice Button */}
+                                    <div className="relative flex-1">
+                                        <Input
+                                            type="number"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            placeholder={t('allocator.addCarPlaceholder')}
+                                            value={carInputValue}
+                                            onChange={(e) => {
+                                                // Solo permitir números
+                                                const value = e.target.value.replace(/[^0-9]/g, '')
+                                                setCarInputValue(value)
+                                            }}
+                                            onKeyDown={handleKeyPress}
+                                            disabled={isSubmitting}
+                                            className="text-center text-base sm:text-lg font-bold border-2 border-gray-300 focus:border-yankees-blue focus:ring-2 focus:ring-yankees-blue/20 h-10 sm:h-12 rounded-lg sm:rounded-xl shadow-sm bg-white disabled:opacity-50 pr-12 sm:pr-14"
+                                            autoFocus
+                                        />
+
+                                        {/* Voice Command Button - Inside Input */}
+                                        <Button
+                                            onClick={handleVoiceCommand}
+                                            disabled={isSubmitting}
+                                            size="sm"
+                                            type="button"
+                                            className={cn(
+                                                "group absolute right-1 top-1/2 -translate-y-1/2 rounded-lg h-8 w-8 sm:h-10 sm:w-10 p-0 shadow-md transition-all duration-300 overflow-hidden",
+                                                isListening
+                                                    ? "bg-red-500 hover:bg-red-600 animate-pulse"
+                                                    : "bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 hover:scale-105",
+                                                "disabled:opacity-50 disabled:scale-100"
+                                            )}
+                                        >
+                                            {/* Animated ring effect when listening */}
+                                            {isListening && (
+                                                <span className="absolute inset-0 rounded-lg bg-red-400 animate-ping opacity-75" />
+                                            )}
+
+                                            {/* Icon */}
+                                            <Mic className={cn(
+                                                "h-4 w-4 sm:h-5 sm:w-5 relative z-10 transition-transform duration-300",
+                                                isListening ? "scale-110" : "group-hover:scale-110"
+                                            )} />
+
+                                            {/* Tooltip hint */}
+                                            <span className="absolute -top-9 right-0 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                {isListening ? 'Escuchando...' : 'Comando de voz'}
+                                            </span>
+                                        </Button>
+                                    </div>
 
                                     {/* Right Arrow Button */}
                                     <Button
