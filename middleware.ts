@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = createRouteMatcher([
   '/sign-up(.*)',
   '/:locale/pending-role',
   '/pending-role',
+  '/api/speech-to-text',
 ])
 
 const COMMON_AUTHENTICATED_ROUTES = createRouteMatcher([
