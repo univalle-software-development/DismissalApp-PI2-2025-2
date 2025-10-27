@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CAMPUS_LOCATIONS, type CampusLocation, type Id } from "@/convex/types"
 import { cn } from "@/lib/utils"
 import { useBirthdayCars } from "@/hooks/use-birthday-cars"
+import { useSpeechToText } from "@/hooks/use-speech-to-text"
 import { Road } from "./road"
 import { CarData, ModeType } from "./types"
 
@@ -29,7 +30,6 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const [isFullscreen, setIsFullscreen] = React.useState(false)
     const [carInputValue, setCarInputValue] = React.useState<string>('')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-    const [isListening, setIsListening] = React.useState(false)
 
     // Alert state
     const [alert, setAlert] = React.useState<{
@@ -43,6 +43,16 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         title: '',
         message: ''
     })
+
+    const {
+        isRecording,
+        isTranscribing,
+        command,
+        error: voiceError,
+        startRecording,
+        stopRecording,
+        resetCommand,
+    } = useSpeechToText()
 
     // Convex hooks - para obtener datos en tiempo real
     const queueData = useQuery(api.queue.getCurrentQueue,
@@ -140,11 +150,10 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const allCars = [...leftLaneCars, ...rightLaneCars]
     const { birthdayCarIds } = useBirthdayCars(allCars)
 
-    // Add car function using Convex mutation
-    const handleAddCarToLane = React.useCallback(async (lane: 'left' | 'right') => {
-        if (!carInputValue.trim() || isSubmitting) return
+    const submitCar = React.useCallback(async (carNumStr: string, lane: 'left' | 'right') => {
+        if (!carNumStr.trim() || isSubmitting) return
 
-        const carNumber = parseInt(carInputValue.trim())
+        const carNumber = parseInt(carNumStr.trim())
         if (isNaN(carNumber) || carNumber <= 0) {
             showAlert('error', 'Invalid Car Number', 'Please enter a valid car number')
             return
@@ -164,10 +173,9 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             })
 
             if (result.success) {
-                setCarInputValue('') // Clear input after successful add
+                setCarInputValue('')
                 showAlert('success', 'Car Added!', `Car ${carNumber} has been added to the ${lane} lane`)
             } else {
-                // Handle different error types
                 switch (result.error) {
                     case 'NO_STUDENTS_FOUND':
                         showAlert('error', 'Car Not Found', `No students found with car number ${carNumber}`)
@@ -190,7 +198,11 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         } finally {
             setIsSubmitting(false)
         }
-    }, [carInputValue, selectedCampus, isCampusSelected, addCarToQueue, isSubmitting, showAlert])
+    }, [addCarToQueue, isCampusSelected, isSubmitting, selectedCampus, showAlert])
+
+    const handleAddCarFromInput = (lane: 'left' | 'right') => {
+        submitCar(carInputValue, lane)
+    }
 
     // Remove car function using Convex mutation
     const handleRemoveCar = React.useCallback(async (carId: string) => {
@@ -213,30 +225,40 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const handleKeyPress = React.useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            // Default to right lane on Enter
-            handleAddCarToLane('right')
+            submitCar(carInputValue, 'right')
         }
-    }, [handleAddCarToLane])
+    }, [submitCar, carInputValue])
 
     // Toggle fullscreen for viewer mode
     const toggleFullscreen = () => {
         setIsFullscreen(!isFullscreen)
     }
 
-    // Handle voice command (placeholder for future implementation)
+    // Handle voice command
     const handleVoiceCommand = React.useCallback(() => {
-        if (isSubmitting) return
+        if (isSubmitting) return;
 
-        // TODO: Implement voice recognition logic
-        setIsListening(!isListening)
-
-        // Placeholder: Auto-stop after animation
-        if (!isListening) {
-            setTimeout(() => {
-                setIsListening(false)
-            }, 3000)
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
         }
-    }, [isListening, isSubmitting])
+    }, [isRecording, isSubmitting, startRecording, stopRecording])
+
+    React.useEffect(() => {
+        if (command?.carNumber && command.lane) {
+            setCarInputValue(String(command.carNumber));
+            submitCar(String(command.carNumber), command.lane);
+            resetCommand();
+        }
+    }, [command, submitCar, resetCommand])
+
+    React.useEffect(() => {
+        if (voiceError) {
+            showAlert('error', 'Voice Command Error', voiceError);
+            resetCommand();
+        }
+    }, [voiceError, showAlert, resetCommand])
 
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
@@ -324,7 +346,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                 <div className="flex items-center gap-2 sm:gap-3 relative z-10 justify-center">
                                     {/* Left Arrow Button */}
                                     <Button
-                                        onClick={() => handleAddCarToLane('left')}
+                                        onClick={() => handleAddCarFromInput('left')}
                                         disabled={!carInputValue.trim() || isSubmitting}
                                         size="sm"
                                         className="bg-blue-600 hover:bg-blue-700 text-white p-2 sm:p-3 h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl shrink-0 shadow-md transition-colors duration-200 disabled:opacity-50"
@@ -346,7 +368,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                                 setCarInputValue(value)
                                             }}
                                             onKeyDown={handleKeyPress}
-                                            disabled={isSubmitting}
+                                            disabled={isSubmitting || isRecording || isTranscribing}
                                             className="text-center text-base sm:text-lg font-bold border-2 border-gray-300 focus:border-yankees-blue focus:ring-2 focus:ring-yankees-blue/20 h-10 sm:h-12 rounded-lg sm:rounded-xl shadow-sm bg-white disabled:opacity-50 pr-12 sm:pr-14"
                                             autoFocus
                                         />
@@ -354,38 +376,38 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                         {/* Voice Command Button - Inside Input */}
                                         <Button
                                             onClick={handleVoiceCommand}
-                                            disabled={isSubmitting}
+                                            disabled={isSubmitting || isTranscribing}
                                             size="sm"
                                             type="button"
                                             className={cn(
                                                 "group absolute right-1 top-1/2 -translate-y-1/2 rounded-lg h-8 w-8 sm:h-10 sm:w-10 p-0 shadow-md transition-all duration-300 overflow-hidden",
-                                                isListening
+                                                isRecording
                                                     ? "bg-red-500 hover:bg-red-600 animate-pulse"
                                                     : "bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 hover:scale-105",
                                                 "disabled:opacity-50 disabled:scale-100"
                                             )}
                                         >
                                             {/* Animated ring effect when listening */}
-                                            {isListening && (
+                                            {isRecording && (
                                                 <span className="absolute inset-0 rounded-lg bg-red-400 animate-ping opacity-75" />
                                             )}
 
                                             {/* Icon */}
                                             <Mic className={cn(
                                                 "h-4 w-4 sm:h-5 sm:w-5 relative z-10 transition-transform duration-300",
-                                                isListening ? "scale-110" : "group-hover:scale-110"
+                                                isRecording ? "scale-110" : "group-hover:scale-110"
                                             )} />
 
                                             {/* Tooltip hint */}
                                             <span className="absolute -top-9 right-0 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                {isListening ? 'Escuchando...' : 'Comando de voz'}
+                                                {isTranscribing ? 'Procesando...' : (isRecording ? 'Escuchando...' : 'Comando de voz')}
                                             </span>
                                         </Button>
                                     </div>
 
                                     {/* Right Arrow Button */}
                                     <Button
-                                        onClick={() => handleAddCarToLane('right')}
+                                        onClick={() => handleAddCarFromInput('right')}
                                         disabled={!carInputValue.trim() || isSubmitting}
                                         size="sm"
                                         className="bg-green-600 hover:bg-green-700 text-white p-2 sm:p-3 h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl shrink-0 shadow-md transition-colors duration-200 disabled:opacity-50"

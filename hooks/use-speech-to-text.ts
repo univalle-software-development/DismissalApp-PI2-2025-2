@@ -1,19 +1,25 @@
 import { useState, useRef, useCallback } from "react";
 
+// Define the new command structure
+interface ParsedCommand {
+    carNumber: number;
+    lane: 'left' | 'right';
+}
+
 interface UseSpeechToTextReturn {
     isRecording: boolean;
     isTranscribing: boolean;
-    transcript: string;
+    command: ParsedCommand | null; // <-- CHANGED
     error: string | null;
     startRecording: () => Promise<void>;
     stopRecording: () => Promise<void>;
-    resetTranscript: () => void;
+    resetCommand: () => void; // <-- RENAMED
 }
 
 export function useSpeechToText(): UseSpeechToTextReturn {
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
-    const [transcript, setTranscript] = useState("");
+    const [command, setCommand] = useState<ParsedCommand | null>(null); // <-- CHANGED
     const [error, setError] = useState<string | null>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -22,6 +28,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
     const startRecording = useCallback(async () => {
         try {
             setError(null);
+            setCommand(null); // <-- ADDED: Reset command on new recording
 
             // Request microphone permission
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -50,7 +57,16 @@ export function useSpeechToText(): UseSpeechToTextReturn {
                     type: "audio/webm;codecs=opus",
                 });
 
-                // Send to API for transcription
+                console.log("Audio blob size (bytes):", audioBlob.size);
+
+                if (audioBlob.size > 1000) {
+                    await transcribeAudio(audioBlob);
+                } else {
+                    console.warn("Audio blob is too small, not sending to API.");
+                    setError("Recording was too short or silent.");
+                }
+
+                // Send to API for transcription and parsing
                 await transcribeAudio(audioBlob);
 
                 // Stop all tracks
@@ -79,7 +95,9 @@ export function useSpeechToText(): UseSpeechToTextReturn {
     const transcribeAudio = async (audioBlob: Blob) => {
         try {
             setIsTranscribing(true);
-            console.log("Sending audio for transcription...");
+            setCommand(null); // <-- ADDED
+            setError(null);   // <-- ADDED
+            console.log("Sending audio for parsing...");
 
             const formData = new FormData();
             formData.append("audio", audioBlob);
@@ -95,33 +113,36 @@ export function useSpeechToText(): UseSpeechToTextReturn {
             }
 
             const data = await response.json();
-            console.log("Transcription result:", data);
+            console.log("Parsed command:", data);
 
-            if (data.transcription) {
-                setTranscript(data.transcription);
-            } else {
-                setError("No transcription returned");
+            if (data.command) {
+                setCommand(data.command); // <-- CHANGED
+            } else if (data.error) {
+                 setError(data.error);
+            }
+             else {
+                setError("No command was returned");
             }
         } catch (err: any) {
-            console.error("Error transcribing audio:", err);
-            setError(err.message || "Failed to transcribe audio");
+            console.error("Error in transcribeAudio:", err);
+            setError(err.message || "Failed to parse command");
         } finally {
             setIsTranscribing(false);
         }
     };
 
-    const resetTranscript = useCallback(() => {
-        setTranscript("");
+    const resetCommand = useCallback(() => { // <-- RENAMED
+        setCommand(null); // <-- CHANGED
         setError(null);
     }, []);
 
     return {
         isRecording,
         isTranscribing,
-        transcript,
+        command, // <-- CHANGED
         error,
         startRecording,
         stopRecording,
-        resetTranscript,
+        resetCommand, // <-- RENAMED
     };
 }
