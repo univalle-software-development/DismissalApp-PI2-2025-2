@@ -61,8 +61,8 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     // Text-to-Speech hook (announcements)
     const { enqueue: ttsEnqueue, enabled: ttsEnabled, setEnabled: setTtsEnabled } = useTextToSpeech()
 
-    // Track seen cars to announce only new arrivals
-    const seenIdsRef = React.useRef<Set<string>>(new Set())
+    // Track seen cars to announce only new arrivals (use stable keys)
+    const seenKeysRef = React.useRef<Set<string>>(new Set())
     const initializedRef = React.useRef(false)
 
     // Convex hooks - para obtener datos en tiempo real
@@ -271,24 +271,32 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         }
     }, [voiceError, showAlert, resetCommand])
 
+    // Reset announcement tracking when campus changes
+    React.useEffect(() => {
+        initializedRef.current = false
+        seenKeysRef.current.clear()
+    }, [selectedCampus])
+
     // Announce newly added cars via Text-to-Speech (viewer mode only)
     React.useEffect(() => {
         if (mode !== 'viewer') return
         if (!isCampusSelected) return
 
-        const currentIds = new Set<string>()
-        for (const c of leftLaneCars) currentIds.add(c.id)
-        for (const c of rightLaneCars) currentIds.add(c.id)
+        // Use a stable key per car to avoid re-announcing on reorder
+        const keyFor = (c: CarData) => `${selectedCampus}|${c.carNumber}`
+        const currentKeys = new Set<string>()
+        for (const c of leftLaneCars) currentKeys.add(keyFor(c))
+        for (const c of rightLaneCars) currentKeys.add(keyFor(c))
 
         if (!initializedRef.current) {
             initializedRef.current = true
-            seenIdsRef.current = currentIds
+            seenKeysRef.current = currentKeys
             return
         }
 
         const newCars: CarData[] = []
-        for (const c of leftLaneCars) if (!seenIdsRef.current.has(c.id)) newCars.push(c)
-        for (const c of rightLaneCars) if (!seenIdsRef.current.has(c.id)) newCars.push(c)
+        for (const c of leftLaneCars) if (!seenKeysRef.current.has(keyFor(c))) newCars.push(c)
+        for (const c of rightLaneCars) if (!seenKeysRef.current.has(keyFor(c))) newCars.push(c)
 
         if (newCars.length > 0 && ttsEnabled) {
             const isEs = locale.toLowerCase().startsWith('es')
@@ -302,9 +310,9 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             }
         }
 
-        // Update seen IDs snapshot
-        seenIdsRef.current = currentIds
-    }, [leftLaneCars, rightLaneCars, isCampusSelected, locale, ttsEnabled, ttsEnqueue, mode])
+        // Update seen keys snapshot (forget removed cars so re-additions are announced)
+        seenKeysRef.current = currentKeys
+    }, [leftLaneCars, rightLaneCars, isCampusSelected, locale, ttsEnabled, ttsEnqueue, mode, selectedCampus])
 
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
