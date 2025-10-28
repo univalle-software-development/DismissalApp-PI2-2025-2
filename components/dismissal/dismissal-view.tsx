@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic } from "lucide-react"
@@ -15,8 +15,11 @@ import { CAMPUS_LOCATIONS, type CampusLocation, type Id } from "@/convex/types"
 import { cn } from "@/lib/utils"
 import { useBirthdayCars } from "@/hooks/use-birthday-cars"
 import { useSpeechToText } from "@/hooks/use-speech-to-text"
+import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { Road } from "./road"
 import { CarData, ModeType } from "./types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 interface DismissalViewProps {
     mode: ModeType
@@ -25,6 +28,7 @@ interface DismissalViewProps {
 
 export function DismissalView({ mode, className }: DismissalViewProps) {
     const t = useTranslations('dismissal')
+    const locale = useLocale()
 
     const [selectedCampus, setSelectedCampus] = React.useState<string>("")
     const [isFullscreen, setIsFullscreen] = React.useState(false)
@@ -53,6 +57,13 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         stopRecording,
         resetCommand,
     } = useSpeechToText()
+
+    // Text-to-Speech hook (announcements)
+    const { enqueue: ttsEnqueue, enabled: ttsEnabled, setEnabled: setTtsEnabled } = useTextToSpeech()
+
+    // Track seen cars to announce only new arrivals
+    const seenIdsRef = React.useRef<Set<string>>(new Set())
+    const initializedRef = React.useRef(false)
 
     // Convex hooks - para obtener datos en tiempo real
     const queueData = useQuery(api.queue.getCurrentQueue,
@@ -260,6 +271,41 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         }
     }, [voiceError, showAlert, resetCommand])
 
+    // Announce newly added cars via Text-to-Speech (viewer mode only)
+    React.useEffect(() => {
+        if (mode !== 'viewer') return
+        if (!isCampusSelected) return
+
+        const currentIds = new Set<string>()
+        for (const c of leftLaneCars) currentIds.add(c.id)
+        for (const c of rightLaneCars) currentIds.add(c.id)
+
+        if (!initializedRef.current) {
+            initializedRef.current = true
+            seenIdsRef.current = currentIds
+            return
+        }
+
+        const newCars: CarData[] = []
+        for (const c of leftLaneCars) if (!seenIdsRef.current.has(c.id)) newCars.push(c)
+        for (const c of rightLaneCars) if (!seenIdsRef.current.has(c.id)) newCars.push(c)
+
+        if (newCars.length > 0 && ttsEnabled) {
+            const isEs = locale.toLowerCase().startsWith('es')
+            const lang = isEs ? 'es-ES' : 'en-US'
+            for (const c of newCars) {
+                const laneLabel = isEs ? (c.lane === 'left' ? 'izquierda' : 'derecha') : (c.lane === 'left' ? 'left' : 'right')
+                const text = isEs
+                    ? `El carro ${c.carNumber} llegó al carril ${laneLabel}.`
+                    : `Car ${c.carNumber} has arrived to the ${laneLabel} lane.`
+                ttsEnqueue(text, { languageCode: lang })
+            }
+        }
+
+        // Update seen IDs snapshot
+        seenIdsRef.current = currentIds
+    }, [leftLaneCars, rightLaneCars, isCampusSelected, locale, ttsEnabled, ttsEnqueue, mode])
+
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
             {/* Campus Selection and Lane Balance */}
@@ -285,6 +331,18 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                             title="Authentication error" />
                     )}
                 </div>
+
+                {/* Voice notifications toggle (viewer mode only) */}
+                {mode === 'viewer' && (
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="voice-toggle"
+                            checked={ttsEnabled}
+                            onCheckedChange={(v) => setTtsEnabled(Boolean(v))}
+                        />
+                        <Label htmlFor="voice-toggle">Voice notifications</Label>
+                    </div>
+                )}
 
                 {/* Lane Balance Bar
                 <Card className={cn("flex-1 border-2 rounded-md border-yankees-blue flex items-center p-3", !isCampusSelected && "opacity-50")}>
@@ -445,3 +503,6 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         </div>
     )
 }
+
+// Announce newly added cars using Text-to-Speech
+// Placed after component to avoid cluttering the main JSX; effect is inside component scope.
