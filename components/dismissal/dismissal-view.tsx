@@ -4,7 +4,7 @@ import * as React from "react"
 import { useTranslations } from "next-intl"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic, Volume2, VolumeX } from "lucide-react"
+import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,6 @@ import { CAMPUS_LOCATIONS, type CampusLocation, type Id } from "@/convex/types"
 import { cn } from "@/lib/utils"
 import { useBirthdayCars } from "@/hooks/use-birthday-cars"
 import { useSpeechToText } from "@/hooks/use-speech-to-text"
-import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { Road } from "./road"
 import { CarData, ModeType } from "./types"
 
@@ -31,9 +30,6 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const [isFullscreen, setIsFullscreen] = React.useState(false)
     const [carInputValue, setCarInputValue] = React.useState<string>('')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-    const [isTextToSpeechEnabled, setIsTextToSpeechEnabled] = React.useState(false)
-
-    const { speak, error: ttsError } = useTextToSpeech()
 
     // Alert state
     const [alert, setAlert] = React.useState<{
@@ -79,15 +75,11 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             message
         })
 
-        if (isTextToSpeechEnabled) {
-            speak(`${title}. ${message}`)
-        }
-
         // Auto-hide after 5 seconds
         setTimeout(() => {
             setAlert(prev => ({ ...prev, show: false }))
         }, 5000)
-    }, [isTextToSpeechEnabled, speak])
+    }, [])
 
     // Function to hide alert manually
     const hideAlert = React.useCallback(() => {
@@ -253,10 +245,6 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         }
     }, [isRecording, isSubmitting, startRecording, stopRecording])
 
-    const toggleTextToSpeech = () => {
-        setIsTextToSpeechEnabled(prev => !prev)
-    }
-
     React.useEffect(() => {
         if (command?.carNumber && command.lane) {
             setCarInputValue(String(command.carNumber));
@@ -272,17 +260,11 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         }
     }, [voiceError, showAlert, resetCommand])
 
-    React.useEffect(() => {
-        if (ttsError) {
-            showAlert('error', 'Text-to-Speech Error', ttsError);
-        }
-    }, [ttsError, showAlert])
-
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
             {/* Campus Selection and Lane Balance */}
             <div className="flex flex-col gap-4  md:flex-row md:items-center md:gap-6 flex-shrink-0">
-                <div className="flex-shrink-0 relative flex items-center gap-2">
+                <div className="flex-shrink-0 relative">
                     <FilterDropdown<CampusLocation>
                         value={selectedCampus as CampusLocation}
                         onChange={(value) => setSelectedCampus(value)}
@@ -295,26 +277,13 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                     />
                     {/* Auth State Indicator */}
                     {isLoading && (
-                        <div className="absolute -bottom-1 left-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"
                             title="Loading authentication..." />
                     )}
                     {authError && (
-                        <div className="absolute -bottom-1 left-2 w-3 h-3 bg-red-500 rounded-full"
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full"
                             title="Authentication error" />
                     )}
-
-                    <Button
-                        onClick={toggleTextToSpeech}
-                        variant="outline"
-                        size="icon"
-                        className={cn(
-                            "rounded-full transition-colors duration-300",
-                            isTextToSpeechEnabled ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                        )}
-                        title={isTextToSpeechEnabled ? "Disable Text-to-Speech" : "Enable Text-to-Speech"}
-                    >
-                        {isTextToSpeechEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-                    </Button>
                 </div>
 
                 {/* Lane Balance Bar
@@ -359,7 +328,6 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                     <div className="text-center space-y-2">
                                         <Car className="h-12 w-12 text-muted-foreground mx-auto" />
                                         <CardTitle className="text-lg text-muted-foreground">{t('campus.required')}</CardTitle>
-
                                         <CardDescription>
                                             {t('campus.placeholder')}
                                         </CardDescription>
