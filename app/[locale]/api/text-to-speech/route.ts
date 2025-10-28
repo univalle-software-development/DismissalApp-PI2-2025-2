@@ -16,10 +16,7 @@ type TTSBody = {
  * Synthesizes speech via Google Cloud Text-to-Speech using API key auth.
  * Mirrors the style used by speech-to-text: simple fetch with `?key=...`.
  */
-export async function POST(
-  request: NextRequest,
-  context: { params: { locale: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
     if (!apiKey) {
@@ -39,7 +36,9 @@ export async function POST(
       );
     }
 
-    const locale = context?.params?.locale || "en";
+    const url = new URL(request.url);
+    const segments = url.pathname.split("/").filter(Boolean);
+    const locale = segments[0] || "en";
     const defaultLanguage = locale.toLowerCase().startsWith("es")
       ? "es-ES"
       : "en-US";

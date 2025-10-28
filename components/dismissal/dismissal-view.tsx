@@ -26,6 +26,13 @@ interface DismissalViewProps {
     className?: string
 }
 
+// Type guard: checks that an object has array-shaped left/right lanes
+function hasCompleteLanes(data: unknown): data is { leftLane: unknown[]; rightLane: unknown[] } {
+    if (typeof data !== 'object' || data === null) return false
+    const d = data as Record<string, unknown>
+    return Array.isArray(d.leftLane) && Array.isArray(d.rightLane)
+}
+
 export function DismissalView({ mode, className }: DismissalViewProps) {
     const t = useTranslations('dismissal')
     const locale = useLocale()
@@ -282,6 +289,9 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
         if (mode !== 'viewer') return
         if (!isCampusSelected) return
 
+        // Skip when queue data is incomplete (prevents clearing seen set on transient states)
+        if (!hasCompleteLanes(queueData)) return
+
         // Use a stable key per car to avoid re-announcing on reorder
         const keyFor = (c: CarData) => `${selectedCampus}|${c.carNumber}`
         const currentKeys = new Set<string>()
@@ -312,7 +322,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
 
         // Update seen keys snapshot (forget removed cars so re-additions are announced)
         seenKeysRef.current = currentKeys
-    }, [leftLaneCars, rightLaneCars, isCampusSelected, locale, ttsEnabled, ttsEnqueue, mode, selectedCampus])
+    }, [leftLaneCars, rightLaneCars, isCampusSelected, locale, ttsEnabled, ttsEnqueue, mode, selectedCampus, queueData])
 
     return (
         <div className={cn("w-full h-full flex flex-col", className)}>
