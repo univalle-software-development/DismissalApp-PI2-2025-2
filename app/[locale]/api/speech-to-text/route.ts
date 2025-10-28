@@ -50,9 +50,14 @@ async function transcribeWithGoogle(audioBlob: Blob): Promise<string> {
 
     console.log("Raw Google API response:", JSON.stringify(data, null, 2));
 
+    type GoogleSpeechResult = {
+        alternatives?: { transcript?: string }[];
+    };
+
     const transcription =
-        data.results
-            ?.map((result: any) => result.alternatives[0]?.transcript)
+        (data.results as GoogleSpeechResult[] | undefined)
+            ?.map((result) => result.alternatives?.[0]?.transcript ?? "")
+            .filter(Boolean)
             .join(" ") || "";
 
     return transcription;
@@ -110,10 +115,16 @@ async function parseCommandWithOpenAI(transcription: string) {
 
         if (toolCall) {
             try {
-                // Some SDK typings don't expose the same shape at compile time; cast to any to read runtime fields.
-                const tcAny = toolCall as any;
+                // Define a narrow runtime type for the tool call shape we expect and avoid using `any`.
+                type ToolCallShape = {
+                    arguments?: string;
+                    function?: { arguments?: string };
+                    [key: string]: unknown;
+                };
+
+                const tc = toolCall as unknown as ToolCallShape;
                 // Arguments may be available as `arguments` or nested under `function.arguments` depending on the SDK/runtime.
-                const rawArgs = tcAny.arguments ?? tcAny.function?.arguments;
+                const rawArgs = tc.arguments ?? tc.function?.arguments;
                 if (rawArgs) {
                     const args = JSON.parse(rawArgs);
                     // Validate the parsed arguments
@@ -165,10 +176,11 @@ export async function POST(request: NextRequest) {
         // Return the structured command
         return NextResponse.json({ command });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error in speech-to-text endpoint:", error);
+        const message = error instanceof Error ? error.message : String(error);
         return NextResponse.json(
-            { error: "Internal server error", message: error.message },
+            { error: "Internal server error", message },
             { status: 500 }
         );
     }
