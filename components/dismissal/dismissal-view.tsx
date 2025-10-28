@@ -33,7 +33,7 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [isTextToSpeechEnabled, setIsTextToSpeechEnabled] = React.useState(false)
 
-    const { speak, isSpeaking, error: ttsError } = useTextToSpeech()
+    const { speak, error: ttsError } = useTextToSpeech()
 
     // Alert state
     const [alert, setAlert] = React.useState<{

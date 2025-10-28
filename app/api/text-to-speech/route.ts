@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
         const data = await response.json()
         return NextResponse.json(data)
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
     }
 }
