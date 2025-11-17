@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import createClient from "@azure-rest/ai-vision-image-analysis";
 import { AzureKeyCredential } from "@azure/core-auth";
 
+// Azure OCR Response Types
+interface AzureOCRLine {
+    text: string;
+}
+
+interface AzureOCRBlock {
+    lines?: AzureOCRLine[];
+}
+
+interface AzureOCRReadResult {
+    blocks?: AzureOCRBlock[];
+}
+
+interface AzureOCRResponse {
+    readResult?: AzureOCRReadResult;
+}
+
 /**
  * OCR Endpoint for License Plate Recognition
  * 
@@ -86,13 +103,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Extraer texto de los resultados
-        const body = result.body as any;
+        const body = result.body as AzureOCRResponse;
         const readResult = body.readResult;
         
         // Extraer todo el texto
         const fullText = readResult?.blocks
-            ?.map((block: any) => 
-                block.lines?.map((line: any) => line.text).join(" ")
+            ?.map((block: AzureOCRBlock) => 
+                block.lines?.map((line: AzureOCRLine) => line.text).join(" ")
             )
             .join(" ") || "";
 

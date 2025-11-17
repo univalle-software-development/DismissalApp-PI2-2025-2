@@ -441,7 +441,7 @@ export function StudentFormDialog({
                         <div className="space-y-4">
                             <div className="flex items-end gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Avatar</Label>
+                                    <Label className="text-sm font-medium">{t('createDialog.fields.avatar.label')}</Label>
                                     <Avatar className="h-16 w-16">
                                         <AvatarImage
                                             src={getAvatarDisplay()}
@@ -469,7 +469,7 @@ export function StudentFormDialog({
                                                     ) : (
                                                         <Upload className="h-4 w-4 mr-1" />
                                                     )}
-                                                    Upload
+                                                    {t('createDialog.fields.avatar.upload')}
                                                 </span>
                                             </Button>
                                         </Label>
@@ -491,13 +491,13 @@ export function StudentFormDialog({
                                                 disabled={isUploadingAvatar}
                                             >
                                                 <X className="h-4 w-4 mr-1" />
-                                                Remove
+                                                {t('createDialog.fields.avatar.remove')}
                                             </Button>
                                         )}
                                     </div>
 
                                     <p className="text-xs text-muted-foreground">
-                                        Upload an image or leave blank to show initials
+                                        {t('createDialog.fields.avatar.hint')}
                                     </p>
                                 </div>
                             </div>
@@ -521,30 +521,30 @@ export function StudentFormDialog({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="licensePlate" className="text-sm font-medium">
-                                    License Plate
+                                    {t('createDialog.fields.licensePlate.label')}
                                 </Label>
                                 <Input
                                     id="licensePlate"
                                     value={formData.licensePlate}
                                     onChange={(e) => updateFormData("licensePlate", e.target.value.toUpperCase())}
-                                    placeholder="CFO-682"
+                                    placeholder={t('createDialog.fields.licensePlate.placeholder')}
                                     className="h-10"
                                     maxLength={10}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Format: AAA-999
+                                    {t('createDialog.fields.licensePlate.hint')}
                                 </p>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="carColor" className="text-sm font-medium">
-                                    Car Color
+                                    {t('createDialog.fields.carColor.label')}
                                 </Label>
                                 <Select 
                                     value={formData.carColor} 
                                     onValueChange={(value) => updateFormData("carColor", value)}
                                 >
                                     <SelectTrigger className="w-full h-10">
-                                        <SelectValue placeholder="Select color" />
+                                        <SelectValue placeholder={t('createDialog.fields.carColor.placeholder')} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="red">Red / Rojo</SelectItem>
@@ -567,7 +567,7 @@ export function StudentFormDialog({
                         {/* Legacy Avatar URL (for compatibility) */}
                         {formData.avatarUrl && !currentAvatarStorageId && (
                             <div className="space-y-2">
-                                <Label htmlFor="avatarUrl" className="text-sm font-medium">Legacy Avatar URL</Label>
+                                <Label htmlFor="avatarUrl" className="text-sm font-medium">{t('createDialog.fields.avatar.legacyUrl')}</Label>
                                 <Input
                                     id="avatarUrl"
                                     value={formData.avatarUrl}
@@ -580,7 +580,6 @@ export function StudentFormDialog({
 
                         <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
                             <p><span className="text-destructive">*</span> {t('createDialog.required')}</p>
-                            <p>Student initials will be shown if no avatar is provided.</p>
                         </div>
                     </div>
                 </div>
