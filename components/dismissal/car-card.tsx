@@ -247,7 +247,7 @@ export const CarCard = React.memo<CarCardProps>(
                 {/* SVG Car - CENTER - Optimized size - Closer to text */}
                 <Car
                   size="viewer"
-                  color={hasBirthdayToday ? "#D4AF37" : "#A6A6A6"}
+                  color={hasBirthdayToday ? "#D4AF37" : car.imageColor}
                   className="!filter !-mt-8"
                   isViewer={isViewerMode}
                 />
@@ -265,8 +265,7 @@ export const CarCard = React.memo<CarCardProps>(
                 {/* SVG Car with dynamic color */}
                 <Car
                   size="lg"
-                  // color={car.imageColor}
-                  color={hasBirthdayToday ? "#F59E0B" : "#A6A6A6"}
+                  color={hasBirthdayToday ? "#F59E0B" : car.imageColor}
                   className="filter drop-shadow-lg hover:drop-shadow-xl transition-all duration-200"
                   isViewer={isViewerMode}
                 />

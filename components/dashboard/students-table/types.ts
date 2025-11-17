@@ -8,6 +8,8 @@ export type Student = {
     lastName: string
     birthday: string
     carNumber: number
+    licensePlate?: string
+    carColor?: string
     grade: Grade
     campusLocation: CampusLocation
     avatarUrl?: string

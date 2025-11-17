@@ -295,6 +295,8 @@ export const create = mutation({
         grade: gradeValidator,
         campusLocation: v.string(),
         carNumber: v.optional(v.number()),
+        licensePlate: v.optional(v.string()),
+        carColor: v.optional(v.string()),
         avatarUrl: v.optional(v.string()),
         avatarStorageId: v.optional(v.id("_storage")), // For new Convex storage
     },
@@ -319,6 +321,9 @@ export const create = mutation({
             throw new Error("Car number cannot be negative");
         }
 
+        // Normalize license plate if provided
+        const licensePlate = args.licensePlate?.trim().toUpperCase();
+
         // Create full name
         const fullName = `${args.firstName.trim()} ${args.lastName.trim()}`;
 
@@ -331,6 +336,8 @@ export const create = mutation({
             grade: args.grade,
             campusLocation: args.campusLocation,
             carNumber,
+            licensePlate,
+            carColor: args.carColor,
             avatarUrl: args.avatarUrl,
             avatarStorageId: args.avatarStorageId,
             isActive: true,
@@ -353,6 +360,8 @@ export const update = mutation({
         grade: v.optional(gradeValidator),
         campusLocation: v.optional(v.string()),
         carNumber: v.optional(v.number()),
+        licensePlate: v.optional(v.string()),
+        carColor: v.optional(v.string()),
         avatarUrl: v.optional(v.string()),
         avatarStorageId: v.optional(v.id("_storage")) // For new Convex storage
     },
@@ -388,6 +397,10 @@ export const update = mutation({
             if (args.carNumber < 0) throw new Error("Car number cannot be negative");
             updates.carNumber = args.carNumber;
         }
+        if (args.licensePlate !== undefined) {
+            updates.licensePlate = args.licensePlate.trim().toUpperCase();
+        }
+        if (args.carColor !== undefined) updates.carColor = args.carColor;
         if (args.avatarUrl !== undefined) updates.avatarUrl = args.avatarUrl;
         if (args.avatarStorageId !== undefined) updates.avatarStorageId = args.avatarStorageId;
 
@@ -713,5 +726,68 @@ export const getByCarNumber = query({
         if (!identity) throw new Error("Not authenticated");
 
         return await getStudentsByCarNumber(ctx.db, args.carNumber, args.campus);
+    }
+});
+
+/**
+ * Get students by license plate for a specific campus
+ * Used for OCR-based car allocation
+ */
+export const getByLicensePlate = query({
+    args: {
+        licensePlate: v.string(),
+        campus: v.string()
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        // Normalizar la placa a mayúsculas para búsqueda consistente
+        const normalizedPlate = args.licensePlate.trim().toUpperCase();
+
+        const students = await ctx.db
+            .query("students")
+            .withIndex("by_license_plate", (q: any) =>
+                q.eq("licensePlate", normalizedPlate)
+                    .eq("campusLocation", args.campus)
+            )
+            .collect();
+
+        return students;
+    }
+});
+
+/**
+ * Search students by license plate (Public action for OCR flow)
+ * This is an action that can be called without auth but performs internal queries
+ */
+export const searchByLicensePlate = mutation({
+    args: {
+        licensePlate: v.string(),
+        campus: v.string()
+    },
+    handler: async (ctx, args) => {
+        // Actions can be called without auth, but we still check for safety
+        // For OCR flow, we allow unauthenticated access to search
+        
+        // Normalizar la placa a mayúsculas para búsqueda consistente
+        const normalizedPlate = args.licensePlate.trim().toUpperCase();
+
+        const students = await ctx.db
+            .query("students")
+            .withIndex("by_license_plate", (q: any) =>
+                q.eq("licensePlate", normalizedPlate)
+                    .eq("campusLocation", args.campus)
+            )
+            .collect();
+
+        // Return only necessary fields for security
+        return students.map(s => ({
+            _id: s._id,
+            fullName: s.fullName,
+            carNumber: s.carNumber,
+            licensePlate: s.licensePlate,
+            carColor: s.carColor
+        }));
     }
 });

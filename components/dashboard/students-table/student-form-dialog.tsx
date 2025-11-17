@@ -88,6 +88,8 @@ export function StudentFormDialog({
                 firstName: student.firstName,
                 lastName: student.lastName,
                 carNumber: student.carNumber?.toString() || "",
+                licensePlate: student.licensePlate || "",
+                carColor: student.carColor || "",
                 grade: student.grade,
                 campusLocation: student.campusLocation,
                 avatarUrl: student.avatarUrl || "",
@@ -98,6 +100,8 @@ export function StudentFormDialog({
             firstName: "",
             lastName: "",
             carNumber: "",
+            licensePlate: "",
+            carColor: "",
             grade: "" as Grade | "",
             campusLocation: "" as CampusLocation | "",
             avatarUrl: "",
@@ -271,6 +275,8 @@ export function StudentFormDialog({
                     day: '2-digit'
                 }),
                 carNumber: formData.carNumber ? parseInt(formData.carNumber) : 0,
+                licensePlate: formData.licensePlate.trim() || undefined,
+                carColor: formData.carColor.trim() || undefined,
                 grade: formData.grade as Grade,
                 campusLocation: formData.campusLocation as CampusLocation,
                 avatarUrl: finalAvatarUrl,
@@ -509,6 +515,53 @@ export function StudentFormDialog({
                                 className="h-10"
                                 min="0"
                             />
+                        </div>
+
+                        {/* License Plate Section */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="licensePlate" className="text-sm font-medium">
+                                    License Plate
+                                </Label>
+                                <Input
+                                    id="licensePlate"
+                                    value={formData.licensePlate}
+                                    onChange={(e) => updateFormData("licensePlate", e.target.value.toUpperCase())}
+                                    placeholder="CFO-682"
+                                    className="h-10"
+                                    maxLength={10}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Format: AAA-999
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="carColor" className="text-sm font-medium">
+                                    Car Color
+                                </Label>
+                                <Select 
+                                    value={formData.carColor} 
+                                    onValueChange={(value) => updateFormData("carColor", value)}
+                                >
+                                    <SelectTrigger className="w-full h-10">
+                                        <SelectValue placeholder="Select color" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="red">Red / Rojo</SelectItem>
+                                        <SelectItem value="blue">Blue / Azul</SelectItem>
+                                        <SelectItem value="white">White / Blanco</SelectItem>
+                                        <SelectItem value="black">Black / Negro</SelectItem>
+                                        <SelectItem value="gray">Gray / Gris</SelectItem>
+                                        <SelectItem value="silver">Silver / Plateado</SelectItem>
+                                        <SelectItem value="green">Green / Verde</SelectItem>
+                                        <SelectItem value="yellow">Yellow / Amarillo</SelectItem>
+                                        <SelectItem value="orange">Orange / Naranja</SelectItem>
+                                        <SelectItem value="purple">Purple / Morado</SelectItem>
+                                        <SelectItem value="brown">Brown / Café</SelectItem>
+                                        <SelectItem value="pink">Pink / Rosado</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* Legacy Avatar URL (for compatibility) */}

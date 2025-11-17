@@ -4,7 +4,7 @@ import * as React from "react"
 import { useLocale, useTranslations } from "next-intl"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic } from "lucide-react"
+import { Car, ChevronLeft, ChevronRight, MapPin, AlertCircle, CheckCircle2, Mic, Camera } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +41,8 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
     const [isFullscreen, setIsFullscreen] = React.useState(false)
     const [carInputValue, setCarInputValue] = React.useState<string>('')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [isProcessingOCR, setIsProcessingOCR] = React.useState(false)
+    const [detectedCarColor, setDetectedCarColor] = React.useState<string | undefined>(undefined)
 
     // Alert state
     const [alert, setAlert] = React.useState<{
@@ -187,11 +189,13 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             const result = await addCarToQueue({
                 carNumber,
                 campus: selectedCampus,
-                lane
+                lane,
+                carColor: detectedCarColor // Pass the color from OCR if available
             })
 
             if (result.success) {
                 setCarInputValue('')
+                setDetectedCarColor(undefined) // Clear the detected color after use
                 showAlert('success', 'Car Added!', `Car ${carNumber} has been added to the ${lane} lane`)
             } else {
                 switch (result.error) {
@@ -277,6 +281,91 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
             resetCommand();
         }
     }, [voiceError, showAlert, resetCommand])
+
+    // Handle license plate OCR
+    const handlePlateCapture = React.useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || isSubmitting || isProcessingOCR) return;
+
+        if (!isCampusSelected) {
+            showAlert('error', 'Campus Required', 'Please select a campus first');
+            return;
+        }
+
+        setIsProcessingOCR(true);
+
+        try {
+            // Step 1: OCR - Extract license plate from image
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const ocrResponse = await fetch('/api/ocr-plate', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const ocrData = await ocrResponse.json();
+
+            if (!ocrData.success) {
+                showAlert('error', 'OCR Failed', ocrData.message || 'Could not read license plate');
+                return;
+            }
+
+            const licensePlate = ocrData.licensePlate;
+            console.log('License plate detected:', licensePlate);
+
+            // Step 2: Query Convex with authentication via action
+            // We'll use a Convex action that can query with auth
+            const searchResponse = await fetch('/api/ocr-plate/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    licensePlate, 
+                    campus: selectedCampus 
+                }),
+            });
+
+            const searchData = await searchResponse.json();
+
+            if (!searchData.success) {
+                showAlert('error', 'Plate Not Found', searchData.message || `No students found with license plate ${licensePlate}`);
+                return;
+            }
+
+            const students = searchData.students;
+            if (!students || students.length === 0) {
+                showAlert('error', 'Plate Not Found', `No students found with license plate ${licensePlate}`);
+                return;
+            }
+
+            // Step 3: Extract car number and color from first student
+            const student = students[0];
+            const carNumber = student.carNumber;
+            const carColor = student.carColor;
+
+            if (!carNumber || carNumber === 0) {
+                showAlert('error', 'No Car Assigned', `License plate ${licensePlate} found, but no car number assigned`);
+                return;
+            }
+
+            // Step 4: Auto-fill the car input and save the color
+            setCarInputValue(String(carNumber));
+            setDetectedCarColor(carColor); // Save color to pass to addCar
+            
+            const colorInfo = carColor ? ` (${carColor})` : '';
+            showAlert('success', 'Plate Recognized!', `License plate ${licensePlate} → Car ${carNumber}${colorInfo}`);
+
+        } catch (error) {
+            console.error('Error processing license plate:', error);
+            showAlert('error', 'Error', 'Failed to process license plate image');
+        } finally {
+            setIsProcessingOCR(false);
+            // Reset file input
+            if (e.target) {
+                e.target.value = '';
+            }
+        }
+    }, [isCampusSelected, isSubmitting, isProcessingOCR, selectedCampus, showAlert])
 
     // Reset announcement tracking when campus changes
     React.useEffect(() => {
@@ -444,15 +533,58 @@ export function DismissalView({ mode, className }: DismissalViewProps) {
                                                 setCarInputValue(value)
                                             }}
                                             onKeyDown={handleKeyPress}
-                                            disabled={isSubmitting || isRecording || isTranscribing}
-                                            className="text-center text-base sm:text-lg font-bold border-2 border-gray-300 focus:border-yankees-blue focus:ring-2 focus:ring-yankees-blue/20 h-10 sm:h-12 rounded-lg sm:rounded-xl shadow-sm bg-white disabled:opacity-50 pr-12 sm:pr-14"
+                                            disabled={isSubmitting || isRecording || isTranscribing || isProcessingOCR}
+                                            className="text-center text-base sm:text-lg font-bold border-2 border-gray-300 focus:border-yankees-blue focus:ring-2 focus:ring-yankees-blue/20 h-10 sm:h-12 rounded-lg sm:rounded-xl shadow-sm bg-white disabled:opacity-50 pr-24 sm:pr-28"
                                             autoFocus
                                         />
+
+                                        {/* Camera Button - For License Plate OCR */}
+                                        <Button
+                                            asChild
+                                            disabled={isSubmitting || isProcessingOCR || isRecording || isTranscribing}
+                                            size="sm"
+                                            type="button"
+                                            className={cn(
+                                                "group absolute right-12 sm:right-14 top-1/2 -translate-y-1/2 rounded-lg h-8 w-8 sm:h-10 sm:w-10 p-0 shadow-md transition-all duration-300 overflow-hidden",
+                                                isProcessingOCR
+                                                    ? "bg-orange-500 hover:bg-orange-600 animate-pulse"
+                                                    : "bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 hover:scale-105",
+                                                "disabled:opacity-50 disabled:scale-100"
+                                            )}
+                                        >
+                                            <label className="cursor-pointer flex items-center justify-center w-full h-full">
+                                                {/* Animated ring effect when processing */}
+                                                {isProcessingOCR && (
+                                                    <span className="absolute inset-0 rounded-lg bg-orange-400 animate-ping opacity-75" />
+                                                )}
+
+                                                {/* Icon */}
+                                                <Camera className={cn(
+                                                    "h-4 w-4 sm:h-5 sm:w-5 relative z-10 transition-transform duration-300",
+                                                    isProcessingOCR ? "scale-110" : "group-hover:scale-110"
+                                                )} />
+
+                                                {/* Tooltip hint */}
+                                                <span className="absolute -top-9 right-0 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                    {isProcessingOCR ? 'Procesando...' : 'Capturar placa'}
+                                                </span>
+
+                                                {/* Hidden file input */}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    onChange={handlePlateCapture}
+                                                    disabled={isSubmitting || isProcessingOCR || isRecording || isTranscribing}
+                                                    className="sr-only"
+                                                />
+                                            </label>
+                                        </Button>
 
                                         {/* Voice Command Button - Inside Input */}
                                         <Button
                                             onClick={handleVoiceCommand}
-                                            disabled={isSubmitting || isTranscribing}
+                                            disabled={isSubmitting || isTranscribing || isProcessingOCR}
                                             size="sm"
                                             type="button"
                                             className={cn(

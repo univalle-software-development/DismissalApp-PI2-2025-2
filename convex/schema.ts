@@ -52,6 +52,10 @@ export default defineSchema({
 
     // Car assignment
     carNumber: v.number(), // 0 = no car assigned
+    
+    // License plate and car info (for OCR integration)
+    licensePlate: v.optional(v.string()), // e.g., "CFO-682"
+    carColor: v.optional(v.string()), // e.g., "red", "blue", "white"
 
     // Additional info
     avatarUrl: v.optional(v.string()),
@@ -68,7 +72,8 @@ export default defineSchema({
     .index("by_campus_active", ["campusLocation", "isActive"])
     .index("by_car_campus", ["carNumber", "campusLocation", "isActive"])
     .index("by_campus_grade", ["campusLocation", "grade", "isActive"])
-    .index("by_full_name", ["fullName"]),
+    .index("by_full_name", ["fullName"])
+    .index("by_license_plate", ["licensePlate", "campusLocation"]),
 
   /**
    * Dismissal Queue - Current cars in lanes
