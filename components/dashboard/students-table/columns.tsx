@@ -110,12 +110,53 @@ export const useColumns = (): ColumnDef<Student>[] => {
             ),
             cell: ({ row }) => {
                 const carNumber = row.getValue("carNumber") as number
+                const student = row.original
                 return (
-                    <Badge variant={carNumber === 0 ? "outline" : "secondary"} className="font-mono tracking-wider text-xs">
-                        {carNumber === 0 ? "N/A" : carNumber}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                        <Badge variant={carNumber === 0 ? "outline" : "secondary"} className="font-mono tracking-wider text-xs w-fit">
+                            {carNumber === 0 ? "N/A" : carNumber}
+                        </Badge>
+                        {student.licensePlate && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                                {student.licensePlate}
+                            </span>
+                        )}
+                    </div>
                 )
             },
+        },
+        {
+            accessorKey: "carColor",
+            header: "Color",
+            cell: ({ row }) => {
+                const carColor = row.getValue("carColor") as string | undefined
+                if (!carColor) return <span className="text-xs text-muted-foreground hidden md:inline">—</span>
+                
+                // Map color name to display
+                const colorMap: Record<string, string> = {
+                    'red': '🔴 Red',
+                    'blue': '🔵 Blue',
+                    'white': '⚪ White',
+                    'black': '⚫ Black',
+                    'gray': '⚪ Gray',
+                    'silver': '⚪ Silver',
+                    'green': '🟢 Green',
+                    'yellow': '🟡 Yellow',
+                    'orange': '🟠 Orange',
+                    'purple': '🟣 Purple',
+                    'brown': '🟤 Brown',
+                    'pink': '🩷 Pink',
+                }
+                
+                return (
+                    <span className="text-xs hidden md:inline">
+                        {colorMap[carColor] || carColor}
+                    </span>
+                )
+            },
+            meta: {
+                className: "hidden md:table-cell"
+            }
         },
         {
             accessorKey: "grade",

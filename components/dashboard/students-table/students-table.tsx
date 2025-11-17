@@ -121,6 +121,8 @@ export function StudentsTable() {
             lastName: string;
             birthday: string;
             carNumber: number;
+            licensePlate?: string;
+            carColor?: string;
             grade: string;
             campusLocation: string;
             avatarUrl?: string;
@@ -136,6 +138,8 @@ export function StudentsTable() {
                 lastName: student.lastName,
                 birthday: student.birthday,
                 carNumber: student.carNumber,
+                licensePlate: student.licensePlate,
+                carColor: student.carColor,
                 grade: student.grade as Grade,
                 campusLocation: student.campusLocation as CampusLocation,
                 avatarUrl: student.avatarUrl || "",
@@ -220,6 +224,8 @@ export function StudentsTable() {
                 campusLocation: studentData.campusLocation,
                 birthday: studentData.birthday,
                 carNumber: studentData.carNumber,
+                licensePlate: studentData.licensePlate,
+                carColor: studentData.carColor,
                 avatarUrl: studentData.avatarUrl,
                 avatarStorageId: studentData.avatarStorageId,
             })
@@ -242,6 +248,8 @@ export function StudentsTable() {
                 campusLocation: studentData.campusLocation,
                 birthday: studentData.birthday,
                 carNumber: studentData.carNumber,
+                licensePlate: studentData.licensePlate,
+                carColor: studentData.carColor,
                 avatarUrl: studentData.avatarUrl,
                 avatarStorageId: studentData.avatarStorageId,
             })

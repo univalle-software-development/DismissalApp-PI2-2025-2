@@ -144,13 +144,61 @@ function generateCarColor(carNumber: number): string {
 }
 
 /**
+ * Map student's carColor (text) to hex color code
+ * Uses a predefined palette for consistency
+ */
+function mapStudentColorToHex(colorName: string): string {
+    const colorMap: Record<string, string> = {
+        // Basic colors
+        'red': '#ef4444',
+        'rojo': '#ef4444',
+        'blue': '#3b82f6',
+        'azul': '#3b82f6',
+        'green': '#10b981',
+        'verde': '#10b981',
+        'yellow': '#f59e0b',
+        'amarillo': '#f59e0b',
+        'white': '#f3f4f6',
+        'blanco': '#f3f4f6',
+        'black': '#1f2937',
+        'negro': '#1f2937',
+        'gray': '#6b7280',
+        'gris': '#6b7280',
+        'silver': '#9ca3af',
+        'plateado': '#9ca3af',
+        'orange': '#f97316',
+        'naranja': '#f97316',
+        'purple': '#8b5cf6',
+        'morado': '#8b5cf6',
+        'pink': '#ec4899',
+        'rosado': '#ec4899',
+        'brown': '#92400e',
+        'café': '#92400e',
+        'marron': '#92400e',
+        // Additional variants
+        'dark blue': '#1e40af',
+        'azul oscuro': '#1e40af',
+        'light blue': '#60a5fa',
+        'azul claro': '#60a5fa',
+        'dark green': '#047857',
+        'verde oscuro': '#047857',
+        'light green': '#84cc16',
+        'verde claro': '#84cc16',
+    };
+
+    const normalized = colorName.toLowerCase().trim();
+    return colorMap[normalized] || '#6b7280'; // Default to gray if color not found
+}
+
+/**
  * Add car to queue (allocator action)
  */
 export const addCar = mutation({
     args: {
         carNumber: v.number(),
         campus: v.string(),
-        lane: laneValidator
+        lane: laneValidator,
+        carColor: v.optional(v.string()) // Optional: color from OCR detection
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -219,6 +267,23 @@ export const addCar = mutation({
         // Get next position in lane
         const position = await getNextPosition(ctx.db, args.campus, args.lane);
 
+        // Determine car color with priority:
+        // 1. Use color passed from OCR/frontend (already in hex or text)
+        // 2. Use student's carColor if available
+        // 3. Generate from carNumber as fallback
+        let carColor: string;
+        if (args.carColor) {
+            // If it's already a hex color, use it; otherwise map it
+            carColor = args.carColor.startsWith('#') 
+                ? args.carColor 
+                : mapStudentColorToHex(args.carColor);
+        } else {
+            const studentWithColor = students.find((s: any) => s.carColor);
+            carColor = studentWithColor?.carColor 
+                ? mapStudentColorToHex(studentWithColor.carColor)
+                : generateCarColor(args.carNumber);
+        }
+
         // Add to queue
         const queueId = await ctx.db.insert("dismissalQueue", {
             carNumber: args.carNumber,
@@ -226,7 +291,7 @@ export const addCar = mutation({
             lane: args.lane,
             position,
             students: students.map(studentToSummary),
-            carColor: generateCarColor(args.carNumber),
+            carColor,
             assignedTime: Date.now(),
             addedBy: user._id,
             status: "waiting"

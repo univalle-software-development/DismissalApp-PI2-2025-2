@@ -308,6 +308,22 @@
                 "carNumber": {
                     "label": "Car Number"
                 },
+                "licensePlate": {
+                    "label": "License Plate",
+                    "placeholder": "CFO-682",
+                    "hint": "Format: AAA-999"
+                },
+                "carColor": {
+                    "label": "Car Color",
+                    "placeholder": "Select color"
+                },
+                "avatar": {
+                    "label": "Avatar",
+                    "upload": "Upload",
+                    "remove": "Remove",
+                    "hint": "Upload an image or leave blank to show initials",
+                    "legacyUrl": "Legacy Avatar URL"
+                },
                 "avatarUrl": {
                     "label": "Avatar URL"
                 }

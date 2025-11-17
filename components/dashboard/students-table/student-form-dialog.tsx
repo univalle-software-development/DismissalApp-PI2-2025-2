@@ -88,6 +88,8 @@ export function StudentFormDialog({
                 firstName: student.firstName,
                 lastName: student.lastName,
                 carNumber: student.carNumber?.toString() || "",
+                licensePlate: student.licensePlate || "",
+                carColor: student.carColor || "",
                 grade: student.grade,
                 campusLocation: student.campusLocation,
                 avatarUrl: student.avatarUrl || "",
@@ -98,6 +100,8 @@ export function StudentFormDialog({
             firstName: "",
             lastName: "",
             carNumber: "",
+            licensePlate: "",
+            carColor: "",
             grade: "" as Grade | "",
             campusLocation: "" as CampusLocation | "",
             avatarUrl: "",
@@ -271,6 +275,8 @@ export function StudentFormDialog({
                     day: '2-digit'
                 }),
                 carNumber: formData.carNumber ? parseInt(formData.carNumber) : 0,
+                licensePlate: formData.licensePlate.trim() || undefined,
+                carColor: formData.carColor.trim() || undefined,
                 grade: formData.grade as Grade,
                 campusLocation: formData.campusLocation as CampusLocation,
                 avatarUrl: finalAvatarUrl,
@@ -435,7 +441,7 @@ export function StudentFormDialog({
                         <div className="space-y-4">
                             <div className="flex items-end gap-4">
                                 <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Avatar</Label>
+                                    <Label className="text-sm font-medium">{t('createDialog.fields.avatar.label')}</Label>
                                     <Avatar className="h-16 w-16">
                                         <AvatarImage
                                             src={getAvatarDisplay()}
@@ -463,7 +469,7 @@ export function StudentFormDialog({
                                                     ) : (
                                                         <Upload className="h-4 w-4 mr-1" />
                                                     )}
-                                                    Upload
+                                                    {t('createDialog.fields.avatar.upload')}
                                                 </span>
                                             </Button>
                                         </Label>
@@ -485,13 +491,13 @@ export function StudentFormDialog({
                                                 disabled={isUploadingAvatar}
                                             >
                                                 <X className="h-4 w-4 mr-1" />
-                                                Remove
+                                                {t('createDialog.fields.avatar.remove')}
                                             </Button>
                                         )}
                                     </div>
 
                                     <p className="text-xs text-muted-foreground">
-                                        Upload an image or leave blank to show initials
+                                        {t('createDialog.fields.avatar.hint')}
                                     </p>
                                 </div>
                             </div>
@@ -511,10 +517,57 @@ export function StudentFormDialog({
                             />
                         </div>
 
+                        {/* License Plate Section */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="licensePlate" className="text-sm font-medium">
+                                    {t('createDialog.fields.licensePlate.label')}
+                                </Label>
+                                <Input
+                                    id="licensePlate"
+                                    value={formData.licensePlate}
+                                    onChange={(e) => updateFormData("licensePlate", e.target.value.toUpperCase())}
+                                    placeholder={t('createDialog.fields.licensePlate.placeholder')}
+                                    className="h-10"
+                                    maxLength={10}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    {t('createDialog.fields.licensePlate.hint')}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="carColor" className="text-sm font-medium">
+                                    {t('createDialog.fields.carColor.label')}
+                                </Label>
+                                <Select 
+                                    value={formData.carColor} 
+                                    onValueChange={(value) => updateFormData("carColor", value)}
+                                >
+                                    <SelectTrigger className="w-full h-10">
+                                        <SelectValue placeholder={t('createDialog.fields.carColor.placeholder')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="red">Red / Rojo</SelectItem>
+                                        <SelectItem value="blue">Blue / Azul</SelectItem>
+                                        <SelectItem value="white">White / Blanco</SelectItem>
+                                        <SelectItem value="black">Black / Negro</SelectItem>
+                                        <SelectItem value="gray">Gray / Gris</SelectItem>
+                                        <SelectItem value="silver">Silver / Plateado</SelectItem>
+                                        <SelectItem value="green">Green / Verde</SelectItem>
+                                        <SelectItem value="yellow">Yellow / Amarillo</SelectItem>
+                                        <SelectItem value="orange">Orange / Naranja</SelectItem>
+                                        <SelectItem value="purple">Purple / Morado</SelectItem>
+                                        <SelectItem value="brown">Brown / Café</SelectItem>
+                                        <SelectItem value="pink">Pink / Rosado</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
                         {/* Legacy Avatar URL (for compatibility) */}
                         {formData.avatarUrl && !currentAvatarStorageId && (
                             <div className="space-y-2">
-                                <Label htmlFor="avatarUrl" className="text-sm font-medium">Legacy Avatar URL</Label>
+                                <Label htmlFor="avatarUrl" className="text-sm font-medium">{t('createDialog.fields.avatar.legacyUrl')}</Label>
                                 <Input
                                     id="avatarUrl"
                                     value={formData.avatarUrl}
@@ -527,7 +580,6 @@ export function StudentFormDialog({
 
                         <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
                             <p><span className="text-destructive">*</span> {t('createDialog.required')}</p>
-                            <p>Student initials will be shown if no avatar is provided.</p>
                         </div>
                     </div>
                 </div>
